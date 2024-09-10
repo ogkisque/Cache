@@ -20,7 +20,7 @@ int main()
         std::cin >> data;
         assert(std::cin.good());
         if (cache.find_update(data, slow_get_page))
-        hits += 1;
+            hits += 1;
     }
 
     std::cout << hits << std::endl;
