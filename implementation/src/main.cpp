@@ -15,12 +15,14 @@ int main()
     assert(std::cin.good());
     cache::Cache<int> cache{m};
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         int data;
         std::cin >> data;
         assert(std::cin.good());
+
         if (cache.find_update(data, slow_get_page))
-            hits += 1;
+            hits++;
     }
 
     std::cout << hits << std::endl;
