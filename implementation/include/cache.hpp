@@ -4,25 +4,45 @@
 #include <unordered_map>
 #include <iterator>
 #include <iostream>
+#include <cassert>
 
 namespace cache
 {
-    
-    template <typename T, typename F, typename KeyT = int>
+    using CountT = size_t;
+
+    template <typename T, typename F, typename KeyT = int, typename ListElemT = int>
     class Cache
     {
 protected:
+        using ListIter = typename std::list<ListElemT>::iterator;
         size_t size_;
-        using CountT = size_t;
-        std::list<std::tuple<KeyT, CountT, T>> cache_;
-
-        using ListIter = typename std::list<std::tuple<KeyT, CountT, T>>::iterator;
+        std::list<ListElemT> cache_;
         std::unordered_map<KeyT, ListIter> hash_map_;
 
         bool is_full()
         {
             return cache_.size() == size_;
         }
+
+public:
+        Cache(size_t size) : size_(size) {}
+
+        virtual bool find_update(KeyT key, F slow_get_page) { }
+    };
+
+//===============================================================================
+//===================================== LFU =====================================
+//===============================================================================
+
+    template <typename T, typename F, typename KeyT = int>
+    class LFU : public Cache<T, F, KeyT, std::tuple<KeyT, CountT, T>>
+    {
+        using ListElemT = typename std::tuple<KeyT, CountT, T>;
+        using ListIter = typename std::list<ListElemT>::iterator;
+        using cache::Cache<T, F, KeyT, ListElemT>::Cache;
+        using cache::Cache<T, F, KeyT, ListElemT>::is_full;
+        using cache::Cache<T, F, KeyT, ListElemT>::hash_map_;
+        using cache::Cache<T, F, KeyT, ListElemT>::cache_;
 
         KeyT get_key(ListIter iter)
         {
@@ -38,33 +58,11 @@ protected:
         {
             return std::get<2>(*iter);
         }
-public:
-        Cache(size_t size) : size_(size) {}
 
-        virtual bool find_update(KeyT key, F slow_get_page) { }
-    
-        friend std::ostream& operator <<(std::ostream& cout, const Cache& cache) 
+public:
+
+        bool find_update(KeyT key, F slow_get_page) override
         {
-            std::cout << "Cache dump:\n";
-            for (auto it = cache.cache_.begin(); it != cache.cache_.end(); it = std::next(it))
-                cout << "data: " << get_data(it) << " count: " << get_count(it) << '\n'; 
-            return cout; 
-        } 
-    };
-
-
-    template <typename T, typename F, typename KeyT = int>
-    class LFU : public Cache<T, F, KeyT>
-    {
-public:
-        using cache::Cache<T, F>::Cache;
-        using cache::Cache<T, F>::is_full;
-        using cache::Cache<T, F>::hash_map_;
-        using cache::Cache<T, F>::cache_;
-        using cache::Cache<T, F>::get_key;
-        using cache::Cache<T, F>::get_count;
-
-        bool find_update(KeyT key, F slow_get_page) {
             auto hit = hash_map_.find(key);
 
             if (hit == hash_map_.end())
@@ -94,28 +92,40 @@ public:
             }
             return true;
         }
+
+        friend std::ostream& operator <<(std::ostream& cout, const LFU& cache)
+        {
+            std::cout << "LFU cache dump:\n";
+            for (auto it = cache.cache_.begin(); it != cache.cache_.end(); it = std::next(it))
+                cout << "data: " << get_data(it) << " count: " << get_count(it) << '\n'; 
+            return cout; 
+        } 
     };
 
+//===============================================================================
+//===================================== LRU =====================================
+//===============================================================================
 
     template <typename T, typename F, typename KeyT = int>
-    class LRU : public Cache<T, F, KeyT>
+    class LRU : public Cache<T, F, KeyT, std::pair<KeyT, T>>
     {
-public:
-        using cache::Cache<T, F>::Cache;
-        using cache::Cache<T, F>::is_full;
-        using cache::Cache<T, F>::hash_map_;
-        using cache::Cache<T, F>::cache_;
-        using cache::Cache<T, F>::get_key;
+        using ListElemT = typename std::pair<KeyT, T>;
+        using cache::Cache<T, F, KeyT, ListElemT>::Cache;
+        using cache::Cache<T, F, KeyT, ListElemT>::is_full;
+        using cache::Cache<T, F, KeyT, ListElemT>::hash_map_;
+        using cache::Cache<T, F, KeyT, ListElemT>::cache_;
 
-        bool find_update(KeyT key, F slow_get_page) {
+public:
+        bool find_update(KeyT key, F slow_get_page) override
+        {
             auto hit = hash_map_.find(key);
 
             if (hit == hash_map_.end())
             {
                 if (is_full())
                 {
-                    hash_map_.erase(get_key(cache_.begin()));
-                    cache_.pop_front();
+                    hash_map_.erase(cache_.back().first);
+                    cache_.pop_back();
                 }
 
                 cache_.emplace_front(key, 0, slow_get_page(key));
@@ -132,35 +142,88 @@ public:
         }
     };
 
+//===============================================================================
+//=================================== Perfect ===================================
+//===============================================================================
 
     template <typename T, typename F, typename KeyT = int>
-    class Perfect : public Cache<T, F, KeyT>
+    class Perfect : public Cache<T, F, KeyT, std::pair<KeyT, T>>
     {
-public:
-        using cache::Cache<T, F>::Cache;
-
-        bool find_update(KeyT key, F slow_get_page) {
-            auto hit = this->hash_map_.find(key);
-
-            if (hit == this->hash_map_.end())
+        using ListElemT = typename std::pair<KeyT, T>;
+        using cache::Cache<T, F, KeyT, ListElemT>::is_full;
+        using cache::Cache<T, F, KeyT, ListElemT>::hash_map_;
+        using cache::Cache<T, F, KeyT, ListElemT>::cache_;
+        std::list<KeyT> request_list_;
+        size_t request_num_;
+        
+        void make_request()
+        {
+            KeyT key = 0;
+            for (size_t i = 0; i < request_num_; i++)
             {
-                if (this->is_full())
-                {
-                    this->hash_map_.erase(std::get<0>(*this->cache_.begin()));
-                    this->cache_.pop_front();
-                }
+                std::cin >> key;
+                assert(std::cin.good());
+                request_list_.push_back(key);
+            }
+        }
 
-                this->cache_.emplace_front(key, 0, slow_get_page(key));
-                this->hash_map_.emplace(key, this->cache_.begin());
+        KeyT find_last()
+        {
+            std::list<KeyT> tmp_list;
+                    
+            for (auto it = cache_.begin(); it != cache_.end(); it = std::next(it))
+                tmp_list.push_back(cache_.begin().first);
 
-                return false;
+            auto request_it = request_list_.begin();
+            auto it = tmp_list.begin();
+            
+            while (tmp_list.size() != 0 && request_it != request_list_.end())
+            {
+                for (it = tmp_list.begin(); it != tmp_list.end(); it = std::next(request_it))
+                    if (*it == *request_it)
+                        tmp_list.erase(it);
+                
+                request_it = std::next(request_it);
             }
 
-            auto elem = hit->second;
-            if (elem != this->cache_.begin())
-                this->cache_.splice(this->cache_.begin(), this->cache_, elem, std::next(elem));
-            
-            return true;
+            return *it;
+        }
+
+public:
+        Perfect(size_t size, size_t request_num) : Cache<T, F, KeyT, ListElemT>(size),
+                                                   request_num_(request_num)
+        {
+            make_request();
+        }
+
+        bool find_update(KeyT key_unused, F slow_get_page) override
+        {
+            while (request_list_.size() > 0)
+            {
+                KeyT request_key = *(request_list_.begin());
+                request_list_.pop_front();
+                auto hit = hash_map_.find(request_key);
+                
+                if (hit == hash_map_.end())
+                {
+                    if (is_full())
+                    {
+                        KeyT key = find_last();
+                        
+                        for (auto it = cache_.end(); it != cache_.end(); it = std::next(it))
+                        {
+                            if (key == std::get<0>(*it))
+                            {
+                                hash_map_.erase(std::get<0>(*it));
+                                cache_.erase(it);
+                            }
+                        }
+                    }
+                    
+                    cache_.emplace_front(request_key, slow_get_page(request_key), 1);
+                    hash_map_.emplace(request_key, cache_.begin());
+                }
+            }
         }
     };
 
