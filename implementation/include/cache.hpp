@@ -8,8 +8,10 @@
 namespace cache
 {
     
-    template <typename T, typename KeyT = int> class Cache
+    template <typename T, typename F, typename KeyT = int>
+    class Cache
     {
+protected:
         size_t size_;
         std::list<std::tuple<KeyT, size_t, T>> cache_;
 
@@ -20,42 +22,10 @@ namespace cache
         {
             return cache_.size() == size_;
         }
-
-        public:
+public:
         Cache(size_t size) : size_(size) {}
 
-        template <typename F> bool find_update(KeyT key, F slow_get_page) {
-            auto hit = hash_map_.find(key);
-
-            //std::cout << this;
-
-            if (hit == hash_map_.end())
-            {
-                if (is_full())
-                {
-                    hash_map_.erase(std::get<0>(*cache_.begin()));
-                    cache_.pop_front();
-                }
-
-                cache_.emplace_front(key, 1, slow_get_page(key));
-                hash_map_.emplace(key, cache_.begin());
-
-                return false;
-            }
-
-            auto list_it = hit->second;
-            size_t cur_count = ++std::get<1>(*list_it);
-            auto next_it = std::next(list_it);
-            
-            if (next_it != cache_.begin() && next_it != cache_.end())
-            {
-                size_t next_count = std::get<1>(*next_it);
-
-                if (cur_count > next_count)
-                    cache_.splice(list_it, cache_, next_it, std::next(next_it));
-            }
-            return true;
-        }
+        virtual bool find_update(KeyT key, F slow_get_page) { }
     
         friend std::ostream& operator <<(std::ostream& cout, const Cache& cache) 
         {
@@ -64,6 +34,76 @@ namespace cache
                 cout << "data: " << std::get<0>(*it) << " count: " << std::get<1>(*it) << '\n'; 
             return cout; 
         } 
+    };
+
+
+    template <typename T, typename F, typename KeyT = int>
+    class LFU : public Cache<T, F, KeyT>
+    {
+public:
+        using cache::Cache<T, F>::Cache;
+
+        bool find_update(KeyT key, F slow_get_page) {
+            auto hit = this->hash_map_.find(key);
+
+            if (hit == this->hash_map_.end())
+            {
+                if (this->is_full())
+                {
+                    this->hash_map_.erase(std::get<0>(*this->cache_.begin()));
+                    this->cache_.pop_front();
+                }
+
+                this->cache_.emplace_front(key, 1, slow_get_page(key));
+                this->hash_map_.emplace(key, this->cache_.begin());
+
+                return false;
+            }
+
+            auto list_it = hit->second;
+            size_t cur_count = ++std::get<1>(*list_it);
+            auto next_it = std::next(list_it);
+            
+            if (next_it != this->cache_.begin() && next_it != this->cache_.end())
+            {
+                size_t next_count = std::get<1>(*next_it);
+
+                if (cur_count > next_count)
+                    this->cache_.splice(list_it, this->cache_, next_it, std::next(next_it));
+            }
+            return true;
+        }
+    };
+
+    template <typename T, typename F, typename KeyT = int>
+    class LRU : public Cache<T, F, KeyT>
+    {
+public:
+        using cache::Cache<T, F>::Cache;
+
+        bool find_update(KeyT key, F slow_get_page) {
+            auto hit = this->hash_map_.find(key);
+
+            if (hit == this->hash_map_.end())
+            {
+                if (this->is_full())
+                {
+                    this->hash_map_.erase(std::get<0>(*this->cache_.begin()));
+                    this->cache_.pop_front();
+                }
+
+                this->cache_.emplace_front(key, 0, slow_get_page(key));
+                this->hash_map_.emplace(key, this->cache_.begin());
+
+                return false;
+            }
+
+            auto elem = hit->second;
+            if (elem != this->cache_.begin())
+                this->cache_.splice(this->cache_.begin(), this->cache_, elem, std::next(elem));
+            
+            return true;
+        }
     };
 
 } // namespace cache

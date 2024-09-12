@@ -13,7 +13,7 @@ int main()
 
     std::cin >> m >> n;
     assert(std::cin.good());
-    cache::Cache<int> cache{m};
+    cache::LFU<int, int(int)> cache{m};
 
     for (int i = 0; i < n; i++)
     {
