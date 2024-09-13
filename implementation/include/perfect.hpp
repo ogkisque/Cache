@@ -3,6 +3,8 @@
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include <unordered_map>
+#include <list>
 
 #include "cache.hpp"
 #include "slow_get_page.hpp"
@@ -12,19 +14,19 @@ void use_perfect();
 namespace cache
 {
     template <typename T, typename F, typename KeyT = int>
-    class Perfect : public Cache<T, F, KeyT, std::pair<KeyT, T>>
+    class Perfect : public Cache<T, F, std::pair<KeyT, T>, KeyT>
     {
         using ListElemT = typename std::pair<KeyT, T>;
-        using cache::Cache<T, F, KeyT, ListElemT>::is_full;
-        using cache::Cache<T, F, KeyT, ListElemT>::hash_map_;
-        using cache::Cache<T, F, KeyT, ListElemT>::cache_;
+        using cache::Cache<T, F, ListElemT, KeyT>::is_full;
+        using cache::Cache<T, F, ListElemT, KeyT>::hash_map_;
+        using cache::Cache<T, F, ListElemT, KeyT>::cache_;
 
         std::vector<KeyT> requests_;
 
         KeyT find_last()
         {
             std::list<KeyT> tmp_list;
-                    
+            
             for (auto it = cache_.begin(); it != cache_.end(); it = std::next(it))
                 tmp_list.push_back(it->first);
 
@@ -34,11 +36,13 @@ namespace cache
             while (tmp_list.size() > 1 && request_it != requests_.end())
             {
                 for (it = tmp_list.begin(); it != tmp_list.end(); it = std::next(it))
+                {
                     if (*it == *request_it)
                     {
                         tmp_list.erase(it);
                         break;
                     }
+                }
                 
                 request_it = std::next(request_it);
             }
@@ -47,7 +51,7 @@ namespace cache
         }
 
 public:
-        Perfect(size_t size, std::vector<KeyT> requests) : Cache<T, F, ListElemT, KeyT>(size),
+        Perfect(size_t size, std::vector<KeyT> requests) : cache::Cache<T, F, ListElemT, KeyT>(size),
                                                            requests_(requests) {}
 
         bool find_update(KeyT key, F slow_get_page) override
@@ -58,15 +62,20 @@ public:
             {
                 if (is_full())
                 {
-                    KeyT key = find_last();
-                    auto del_it = hash_map_.find(key);
-                    hash_map_.erase(del_it);
-                    cache_.erase(del_it.second);
+                    KeyT del_key = find_last();
+                    auto del_it = hash_map_.find(del_key);
+
+                    hash_map_.erase(del_key);
+                    cache_.erase(del_it->second);
                 }
                 
                 cache_.emplace_front(key, slow_get_page(key));
                 hash_map_.emplace(key, cache_.begin());
+
+                return false;
             }
+
+            return true;
         }
     };
 

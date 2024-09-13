@@ -25,7 +25,7 @@ protected:
 public:
         Cache(size_t size) : size_(size) {}
 
-        virtual bool find_update(KeyT key, F slow_get_page) { }
+        virtual bool find_update(KeyT key, F slow_get_page) = 0;
     };
 
 } // namespace cache

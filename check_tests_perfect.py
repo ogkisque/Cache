@@ -4,12 +4,12 @@ from sys import executable
 num_test = 1
 is_ok = True
 for i in range(1, 11):
-	str_data =  "tests_lru/"
+	str_data =  "tests_perfect/"
 	if i != 10:
 		str_data += "0"
 	str_data += str(i) + ".dat"
 	file_in = open(str_data, "r")
-	str_ans = "tests_lru/"
+	str_ans = "tests_perfect/"
 	if i != 10:
 		str_ans += "0"
 	str_ans += str(i) + ".dat.ans"
@@ -18,7 +18,7 @@ for i in range(1, 11):
 	for i in open(str_ans):
 		ans = i
 	
-	result = run(["./implementation/cache", "lru"], capture_output = True, encoding='cp866', stdin=file_in)
+	result = run(["./implementation/cache", "perfect"], capture_output = True, encoding='cp866', stdin=file_in)
 	print("Test: " + str(num_test).strip())
 	print("Result: " + str(result.stdout).strip())
 	

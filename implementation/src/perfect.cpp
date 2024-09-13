@@ -2,23 +2,28 @@
 
 void use_perfect()
 {
-    // int hits = 0;
-    // size_t n;
-    // size_t m;
+    size_t m = 0;
+    size_t n = 0;
+    size_t hits = 0;
 
-    // std::cin >> m >> n;
-    // assert(std::cin.good());
-    // cache::LRU<int, int(int)> cache{m};
+    std::cin >> m >> n;
 
-    // for (size_t i = 0; i < n; i++)
-    // {
-    //     int data;
-    //     std::cin >> data;
-    //     assert(std::cin.good());
+    std::vector<int> requests;
 
-    //     if (cache.find_update(data, slow_get_page))
-    //         hits++;
-    // }
+    for (size_t i = 0; i < n; i++)
+    {
+        int key = 0;
+        std::cin >> key;
+        requests.push_back(key);
+    }
 
-    // std::cout << hits << std::endl;
+    cache::Perfect<int, int(int)> cache{m, requests};
+    
+    for (auto it = requests.begin(); it != requests.end(); it = std::next(it))
+    {
+        if (cache.find_update(*it, slow_get_page))
+            hits++;
+    }
+
+    std::cout << hits << std::endl;
 }
