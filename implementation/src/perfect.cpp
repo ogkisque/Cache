@@ -8,7 +8,7 @@ void use_perfect()
 
     std::cin >> m >> n;
 
-    std::vector<int> requests;
+    std::list<int> requests;
 
     for (size_t i = 0; i < n; i++)
     {
