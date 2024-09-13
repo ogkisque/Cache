@@ -18,7 +18,7 @@ for i in range(1, 11):
 	for i in open(str_ans):
 		ans = i
 	
-	result = run(["./implementation/cache", "perfect"], capture_output = True, encoding='cp866', stdin=file_in)
+	result = run(["./implementation/build/src/main", "perfect"], capture_output = True, encoding='cp866', stdin=file_in)
 	print("Test: " + str(num_test).strip())
 	print("Result: " + str(result.stdout).strip())
 	
