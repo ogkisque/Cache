@@ -11,12 +11,12 @@ int main()
     size_t n;
     size_t m;
 
-/*
+
     std::cin >> m >> n;
     assert(std::cin.good());
-    cache::LFU<int, int(int)> cache{m};
+    cache::LRU<int, int(int)> cache{m};
 
-    for (int i = 0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         int data;
         std::cin >> data;
@@ -27,8 +27,8 @@ int main()
     }
 
     std::cout << hits << std::endl;
-*/
-    cache::Perfect<int, int(int)> cache{m, n};
+
+    //cache::Perfect<int, int(int)> cache{m, n};
 }
 
 int slow_get_page(int key)

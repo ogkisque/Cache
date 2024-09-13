@@ -10,11 +10,13 @@ namespace cache
 {
     using CountT = size_t;
 
-    template <typename T, typename F, typename KeyT = int, typename ListElemT = int>
+    template <typename T, typename F, typename ListElemT, typename KeyT = int>
     class Cache
     {
-protected:
+public:
         using ListIter = typename std::list<ListElemT>::iterator;
+
+protected:
         size_t size_;
         std::list<ListElemT> cache_;
         std::unordered_map<KeyT, ListIter> hash_map_;
@@ -35,21 +37,21 @@ public:
 //===============================================================================
 
     template <typename T, typename F, typename KeyT = int>
-    class LFU : public Cache<T, F, KeyT, std::tuple<KeyT, CountT, T>>
+    class LFU : public Cache<T, F, std::tuple<KeyT, CountT, T>, KeyT>
     {
         using ListElemT = typename std::tuple<KeyT, CountT, T>;
         using ListIter = typename std::list<ListElemT>::iterator;
-        using cache::Cache<T, F, KeyT, ListElemT>::Cache;
-        using cache::Cache<T, F, KeyT, ListElemT>::is_full;
-        using cache::Cache<T, F, KeyT, ListElemT>::hash_map_;
-        using cache::Cache<T, F, KeyT, ListElemT>::cache_;
+        using cache::Cache<T, F, ListElemT>::Cache;
+        using cache::Cache<T, F, ListElemT>::is_full;
+        using cache::Cache<T, F, ListElemT>::hash_map_;
+        using cache::Cache<T, F, ListElemT>::cache_;
 
         KeyT get_key(ListIter iter)
         {
             return std::get<0>(*iter);
         }
 
-        CountT get_count(ListIter iter)
+        CountT& get_count(ListIter iter)
         {
             return std::get<1>(*iter);
         }
@@ -80,7 +82,7 @@ public:
             }
 
             auto list_it = hit->second;
-            size_t cur_count = ++std::get<1>(*list_it);
+            size_t cur_count = ++get_count(list_it);
             auto next_it = std::next(list_it);
             
             if (next_it != cache_.begin() && next_it != cache_.end())
@@ -107,13 +109,13 @@ public:
 //===============================================================================
 
     template <typename T, typename F, typename KeyT = int>
-    class LRU : public Cache<T, F, KeyT, std::pair<KeyT, T>>
+    class LRU : public Cache<T, F, std::pair<KeyT, T>, KeyT>
     {
         using ListElemT = typename std::pair<KeyT, T>;
-        using cache::Cache<T, F, KeyT, ListElemT>::Cache;
-        using cache::Cache<T, F, KeyT, ListElemT>::is_full;
-        using cache::Cache<T, F, KeyT, ListElemT>::hash_map_;
-        using cache::Cache<T, F, KeyT, ListElemT>::cache_;
+        using cache::Cache<T, F, ListElemT>::Cache;
+        using cache::Cache<T, F, ListElemT>::is_full;
+        using cache::Cache<T, F, ListElemT>::hash_map_;
+        using cache::Cache<T, F, ListElemT>::cache_;
 
 public:
         bool find_update(KeyT key, F slow_get_page) override
@@ -128,7 +130,7 @@ public:
                     cache_.pop_back();
                 }
 
-                cache_.emplace_front(key, 0, slow_get_page(key));
+                cache_.emplace_front(key, slow_get_page(key));
                 hash_map_.emplace(key, cache_.begin());
 
                 return false;
