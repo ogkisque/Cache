@@ -59,9 +59,14 @@ public:
         {
             auto hit = hash_map_.find(key);
             requests_.pop_front();
+
+            bool is_hit = true;
+            bool need_emplace = true;
             
             if (hit == hash_map_.end())
             {
+                is_hit = false;
+
                 if (is_full())
                 {
                     KeyT del_key = find_last(key);
@@ -71,15 +76,20 @@ public:
                         hash_map_.erase(del_key);
                         cache_.erase(del_it->second);
                     }
+                    else
+                    {
+                        need_emplace = false;
+                    }
                 }
-                
-                cache_.emplace_front(key, slow_get_page(key));
-                hash_map_.emplace(key, cache_.begin());
 
-                return false;
+                if (need_emplace)
+                {
+                    cache_.emplace_front(key, slow_get_page(key));
+                    hash_map_.emplace(key, cache_.begin());
+                }
             }
 
-            return true;
+            return is_hit;
         }
     };
 
